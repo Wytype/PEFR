@@ -1,0 +1,78 @@
+MODEL:
+  PRETRAIN_CHOICE: 'imagenet'
+  PRETRAIN_PATH: '../models/pretrained_checkpoints/jx_vit_base_p16_224-80ecf9dd.pth'
+  METRIC_LOSS_TYPE: 'triplet'
+  IF_LABELSMOOTH: 'off'
+  IF_WITH_CENTER: 'no'
+  NAME: 'vit_oafr'
+  NO_MARGIN: True
+  DEVICE_ID: ('2')
+  TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
+  STRIDE_SIZE: [16, 16]
+  OCC_AUG: True
+  ARC: 'OAFR'
+  JPM: True
+  SIE_CAMERA: False
+
+
+INPUT:
+  SIZE_TRAIN: [224, 224]
+  SIZE_TEST: [224, 224]
+  PROB: 0.5 # random horizontal flip
+  RE_PROB: 0.5 # random erasing
+  PADDING: 10
+  PIXEL_MEAN: [0.485, 0.456, 0.406]
+  PIXEL_STD: [0.229, 0.224, 0.225]
+
+DATASETS:
+  NAMES: ('occ_duke')
+  ROOT_DIR: ('/data1/wuyue/reid/Occluded-DukeMTMC-Dataset')
+
+DATALOADER:
+  SAMPLER: 'softmax_triplet'
+  NUM_INSTANCE: 4
+  NUM_WORKERS: 8
+
+SOLVER:
+  OPTIMIZER_NAME: 'SGD'
+  MAX_EPOCHS: 160
+  #0.008 baselr
+  BASE_LR: 0.008
+  LR2_bool: True
+  LR_2: 0.008
+  IMS_PER_BATCH: 64
+  WARMUP_METHOD: 'linear'
+  LARGE_FC_LR: False
+  CHECKPOINT_PERIOD: 100
+  LOG_PERIOD: 50
+  EVAL_PERIOD: 10
+  #weight decay 1e-4
+  WEIGHT_DECAY:  1e-4
+  WEIGHT_DECAY_BIAS: 1e-4
+  BIAS_LR_FACTOR: 2
+  NEAREST_K: 5
+  RECOVER_METHOD: 'soft_label'
+
+
+TEST:
+  EVAL: True
+  IMS_PER_BATCH: 256
+  RE_RANKING: False
+  WEIGHT: './logs/thefinal/two_stage/0.2a_label/vit_oafrbest.pth'
+  #bijiaohaode
+  #WEIGHT: './logs/new_experence/ex2/vit_oafrbest.pth'
+  #WEIGHT: './logs/shiyan/vit_oafr08090512_100.pth'
+  #WEIGHT: './logs/occ_duke_vit_oafr_224/vit_oafr05240036_100.pth'
+  #WEIGHT: './logs/shiyan/vit_oafr06101640_100.pth'
+  NECK_FEAT: 'before'
+  FEAT_NORM: 'yes'
+#  LOCAL: True
+#  VISUALIZE: False
+#  VISUAL_FEAT_RECOVERY: False
+#  VISUAL_MODE: "inter-camera"
+#  VISUAL_DIR: './logs/occ_duke_swin_oafr/visual_inter_cam/visual_weights'
+#  PID_VISUAL: [ 72,151,181,197,213,239,251,276 ]
+
+#OUTPUT_DIR: './logs/occ_duke_vit_oafr_224'
+OUTPUT_DIR: './logs/thefinal/two_stage/0.7a_label_test'
+

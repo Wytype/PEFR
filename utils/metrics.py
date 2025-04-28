@@ -262,7 +262,7 @@ class R1_mAP_eval():
         return cmc, mAP, distmat, self.pids, self.camids
 
 
-    def compute_loop_featurerecover(self, k_num=5, first_dist='global', recover_method='hard_label', n_num=3):
+    def compute_loop_featurerecover(self, k_num=5, first_dist='global', recover_method='soft_label', n_num=3):
         g_feats = torch.cat(self.g_feats, dim=0)  # [N,L]
         l_feats = torch.cat(self.l_feats, dim=1)  # [7, N, L]
         feats_w = torch.cat(self.weight, dim=1)  # [7, N]
@@ -388,18 +388,17 @@ class R1_mAP_eval():
 
             if recover_method == 'hard_label':
                 # q_w (7,2210)
-                q_need_w = (1 - q_w).permute(1, 0)  # (2210,7)
-                q_w_ori = q_w.permute(1, 0)
-                q_recovery = q_lf.permute(1, 0, 2) * q_w_ori.unsqueeze(dim=-1) + g_near_feat * q_need_w.unsqueeze(
-                    dim=-1)
+                q_need_w = 1 - q_recovery_w[i]  # (2210,)
+                q_w_ori = q_recovery_w[i]  # (2210,)
+                q_recovery_layer = q_recovery[i] * q_w_ori.unsqueeze(dim=-1) + g_near_feat[:, i, :] * q_need_w.unsqueeze(dim=-1)
+                q_recovery[i] = q_recovery_layer  # 更新 q_recovery 的第 i 层
                 q_recovery = q_recovery.permute(1, 0, 2)
+                q_recovery_w[i] = q_recovery_w[i] + q_need_w * g_w_Knearst_represnet.permute(1, 0)[i]  # 更新 q_recovery_w 的第 i 层
                 # q_recovery_w = torch.ones_like(q_w)
-                q_recovery_w = q_w + q_need_w.permute(1, 0) * g_w_Knearst_represnet.permute(1, 0)
             elif recover_method == 'soft_label':
                 q_need_vis = 1 - q_recovery_w[i]  # (2210,)
                 q_vis_ori = q_recovery_w[i]  # (2210,)
-                q_recovery_layer = q_recovery[i] * q_vis_ori.unsqueeze(dim=-1) + g_near_feat[:, i, :] * q_need_vis.unsqueeze(
-                    dim=-1)  # (2210, 1024)
+                q_recovery_layer = q_recovery[i] * q_vis_ori.unsqueeze(dim=-1) + g_near_feat[:, i, :] * q_need_vis.unsqueeze(dim=-1)  # (2210, 1024)
                 q_recovery[i] = q_recovery_layer  # 更新 q_recovery 的第 i 层
                 q_recovery_w[i] = q_recovery_w[i] + q_need_vis * g_w_Knearst_represnet.permute(1,0)[i]  # 更新 q_recovery_w 的第 i 层
 

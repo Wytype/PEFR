@@ -4,9 +4,9 @@ MODEL:
   METRIC_LOSS_TYPE: 'triplet'
   IF_LABELSMOOTH: 'off'
   IF_WITH_CENTER: 'no'
-  NAME: 'vit_oafr'
+  NAME: 'vit_pefr'
   NO_MARGIN: True
-  DEVICE_ID: ('2')
+  DEVICE_ID: ('3')
   TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
   STRIDE_SIZE: [16, 16]
   OCC_AUG: True
@@ -58,21 +58,16 @@ TEST:
   EVAL: True
   IMS_PER_BATCH: 256
   RE_RANKING: False
-  WEIGHT: './logs/thefinal/two_stage/0.2a_label/vit_oafrbest.pth'
-  #bijiaohaode
-  #WEIGHT: './logs/new_experence/ex2/vit_oafrbest.pth'
-  #WEIGHT: './logs/shiyan/vit_oafr08090512_100.pth'
-  #WEIGHT: './logs/occ_duke_vit_oafr_224/vit_oafr05240036_100.pth'
-  #WEIGHT: './logs/shiyan/vit_oafr06101640_100.pth'
+  WEIGHT: './logs/occ_duke_vit_224/vit_04240036_100.pth'
   NECK_FEAT: 'before'
   FEAT_NORM: 'yes'
 #  LOCAL: True
 #  VISUALIZE: False
 #  VISUAL_FEAT_RECOVERY: False
 #  VISUAL_MODE: "inter-camera"
-#  VISUAL_DIR: './logs/occ_duke_swin_oafr/visual_inter_cam/visual_weights'
-#  PID_VISUAL: [ 72,151,181,197,213,239,251,276 ]
+#  VISUAL_DIR: ''
+#  PID_VISUAL: []
 
-#OUTPUT_DIR: './logs/occ_duke_vit_oafr_224'
-OUTPUT_DIR: './logs/thefinal/two_stage/0.7a_label_test'
+OUTPUT_DIR: './logs/occ_duke_vit_224'
+
 

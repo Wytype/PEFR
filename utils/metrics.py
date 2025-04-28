@@ -411,7 +411,7 @@ class R1_mAP_eval():
         cmc, mAP = eval_func(distmat, q_pids, g_pids, q_camids, g_camids)
         return cmc, mAP, distmat, self.pids, self.camids, list(set(pid_changes))
 
-    def compute_loop_featurerecover(self, k_num=5, first_dist='global', recover_method='hard_label', n_num=2):
+    def compute_loop_featurerecover(self, k_num=5, first_dist='global', recover_method='hard_label', n_num=3):
         g_feats = torch.cat(self.g_feats, dim=0)  # [N,L]
         l_feats = torch.cat(self.l_feats, dim=1)  # [7, N, L]
         feats_w = torch.cat(self.weight, dim=1)  # [7, N]
@@ -860,7 +860,7 @@ class R1_mAP_eval():
         else:
             if if_reco:
                 # print('=> Computing DistMat with euclidean_distance')
-                distmat = self.compute_featRecovery(k_num=5, first_dist='local')[2]
+                distmat = self.compute_loop_featurerecover(k_num=5, first_dist='local')[2]
             else:
                 if if_weighted:
                     distmat = self.compute_w()[2]

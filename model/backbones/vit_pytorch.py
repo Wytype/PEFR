@@ -338,7 +338,7 @@ class TransReID(nn.Module):
 
         num_patches = self.patch_embed.num_patches
         # self.alpha = 0.2
-        self.alpha = nn.Parameter(torch.tensor(0.3))
+        self.alpha = nn.Parameter(torch.tensor(0.6))
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
         self.cam_num = camera
@@ -422,7 +422,7 @@ class TransReID(nn.Module):
 
         x = self.pos_drop(x)
         # a = self.alpha
-        a = torch.clamp(self.alpha, max=0.7)  # 约束到[0,0.5]
+        a = torch.clamp(self.alpha, max=1)  # 约束到[0,0.5]
         if flag:
             # for blk in self.blocks[:-1]:
             for i, blk in enumerate(self.blocks):

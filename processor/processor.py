@@ -114,7 +114,7 @@ def do_train(cfg,
                 if cfg.MODEL.OCC_AUG:
                     target = torch.cat([target, target], dim=0)
                     target_cam = torch.cat([target_cam, target_cam], dim=0)
-                if cfg.MODEL.ARC == 'OAFR':
+                if cfg.MODEL.ARC == 'PEFR':
                     score,feat, occ_feat, occ_lable_gt_2d, occ_lable_gt, occ_pre_label, local_feat, rand_index, from_copy_tensor_label = model(
                         img, body, flag, cfg.MODEL.OCC_AUG, cfg.SOLVER.PERSON_OCC_PRO, target, cam_label=target_cam, view_label=target_view)
 
@@ -141,7 +141,7 @@ def do_train(cfg,
             else:
                 acc = (score.max(1)[1] == target).float().mean()
 
-            if cfg.MODEL.ARC == 'OAFR':
+            if cfg.MODEL.ARC == 'PEFR':
                 loss_meter1.update(loss_1,img.shape[0])
                 loss_meter2.update(loss_2,img.shape[0])
 
@@ -162,14 +162,14 @@ def do_train(cfg,
             logger.info("Epoch {} done. Time per batch: {:.3f}[s] Speed: {:.1f}[samples/s]"
                     .format(epoch, time_per_batch, train_loader.batch_size / time_per_batch))
 
-        # if epoch % checkpoint_period == 0:
-        #     if cfg.MODEL.DIST_TRAIN:
-        #         if dist.get_rank() == 0:
-        #             torch.save(model.state_dict(),
-        #                        os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME +datetime.datetime.now().strftime('%m%d%H%M') + '_{}.pth'.format(epoch)))
-        #     else:
-        #         torch.save(model.state_dict(),
-        #                    os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME +datetime.datetime.now().strftime('%m%d%H%M') + '_{}.pth'.format(epoch)))
+        if epoch % checkpoint_period == 0:
+            if cfg.MODEL.DIST_TRAIN:
+                if dist.get_rank() == 0:
+                    torch.save(model.state_dict(),
+                               os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME +datetime.datetime.now().strftime('%m%d%H%M') + '_{}.pth'.format(epoch)))
+            else:
+                torch.save(model.state_dict(),
+                           os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME +datetime.datetime.now().strftime('%m%d%H%M') + '_{}.pth'.format(epoch)))
 
         if epoch % eval_period == 0:
             if cfg.MODEL.DIST_TRAIN:
@@ -181,17 +181,17 @@ def do_train(cfg,
                             camids = camids.to(device)
                             target_view = target_view.to(device)
 
-                            if cfg.MODEL.ARC == 'OAFR':
+                            if cfg.MODEL.ARC == 'PEFR':
                                 globla_feats, local_feat_h, wei_h, co_h_pro = model(img, cfg.SOLVER.PERSON_OCC_PRO, cam_label=camids, view_label=target_view)
                                 evaluator.update((globla_feats, vid, camid))
                                 evaluator.update_w((globla_feats, local_feat_h, wei_h, local_feat_h, co_h_pro, vid, camid))
                             else:
                                 feat = model(img, cam_label=camids, view_label=target_view)
                                 evaluator.update((feat, vid, camid))
-                    if cfg.MODEL.ARC == 'OAFR':
+                    if cfg.MODEL.ARC == 'PEFR':
                         cmc, mAP, _, _, _, _, _ = evaluator.compute()
                         cmc_local, mAP_local, _, _, _ = evaluator.compute_w()
-                        cmc_local_recovery, mAP_local_recovery, _, _, _ , _ = evaluator.compute_featRecovery(k_num=cfg.SOLVER.NEAREST_K)
+                        cmc_globalloop_recovery, mAP_globalloop_recovery, _, _, _, _ = evaluator.compute_loop_featurerecover(k_num=cfg.SOLVER.NEAREST_K)
 
                         logger.info("mAP: {:.1%}".format(mAP))
                         for r in [1, 5, 10]:
@@ -200,9 +200,11 @@ def do_train(cfg,
                         logger.info("local_mAP: {:.1%}".format(mAP_local))
                         for r in [1, 5, 10]:
                             logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local[r - 1]))
-                        logger.info("local_mAP: {:.1%}".format(mAP_local_recovery))
+
+                        logger.info("global_recoveryloop_mAP: {:.1%}".format(mAP_globalloop_recovery))
                         for r in [1, 5, 10]:
-                            logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local_recovery[r - 1]))
+                            logger.info(
+                                "local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_globalloop_recovery[r - 1]))
                     else:
                         cmc, mAP, _, _, _, _, _ = evaluator.compute()
                         logger.info("Validation Results - Epoch: {}".format(epoch))
@@ -221,7 +223,7 @@ def do_train(cfg,
                         # mask_expanded = body.expand(-1, 3, -1, -1)
                         # mask = img * mask_expanded
 
-                        if cfg.MODEL.ARC == 'OAFR':
+                        if cfg.MODEL.ARC == 'PEFR':
                             globla_feats, local_feat_h, wei_h, co_h_pro = model(img,body,flag, cfg.SOLVER.PERSON_OCC_PRO,
                                                                                 cam_label=camids,
                                                                                 view_label=target_view)
@@ -230,14 +232,9 @@ def do_train(cfg,
                         else:
                             feat = model(img, cam_label=camids, view_label=target_view)
                             evaluator.update((feat, vid, camid))
-                if cfg.MODEL.ARC == 'OAFR':
+                if cfg.MODEL.ARC == 'PEFR':
                     cmc, mAP, _, _, _, _, _ = evaluator.compute()
                     cmc_local, mAP_local, _, _, _ = evaluator.compute_w()
-
-                    # cmc_local_recovery, mAP_local_recovery, _, _, _ ,_= evaluator.compute_featRecovery(
-                    #     k_num=cfg.SOLVER.NEAREST_K,first_dist='local',recover_method = cfg.SOLVER.RECOVER_METHOD)
-                    # cmc_global_recovery, mAP_global_recovery, _, _, _,_ = evaluator.compute_featRecovery(
-                    #     k_num=cfg.SOLVER.NEAREST_K, first_dist='global',recover_method = cfg.SOLVER.RECOVER_METHOD)
 
                     cmc_globalloop_recovery, mAP_globalloop_recovery, _, _, _, _ = evaluator.compute_loop_featurerecover(
                         k_num=cfg.SOLVER.NEAREST_K, first_dist='global', recover_method=cfg.SOLVER.RECOVER_METHOD)
@@ -250,15 +247,6 @@ def do_train(cfg,
                     for r in [1, 5, 10]:
                         logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local[r - 1]))
 
-                    # logger.info("local_recovery_mAP: {:.1%}".format(mAP_local_recovery))
-                    # for r in [1, 5, 10]:
-                    #     logger.info("local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local_recovery[r - 1]))
-                    #
-                    # logger.info("global_recovery_mAP: {:.1%}".format(mAP_global_recovery))
-                    # for r in [1, 5, 10]:
-                    #     logger.info(
-                    #         "local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_global_recovery[r - 1]))
-
                     logger.info("global_recoveryloop_mAP: {:.1%}".format(mAP_globalloop_recovery))
                     for r in [1, 5, 10]:
                         logger.info(
@@ -270,11 +258,9 @@ def do_train(cfg,
                     if max_R1 > best:
                         best = max_R1
                         torch.save(model.state_dict(),
-                                   os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME + 'best.pth'))
+                                   os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME + 'best_checkpoint.pth'))
 
                         logger.info("best_checkpoint")
-
-
 
                 else:
                     cmc, mAP, _, _, _, _, _ = evaluator.compute()
@@ -283,167 +269,6 @@ def do_train(cfg,
                     for r in [1, 5, 10]:
                         logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
                 torch.cuda.empty_cache()
-
-
-
-
-
-
-
-
-        # if epoch >= 60:
-        #     if cfg.MODEL.DIST_TRAIN:
-        #         if dist.get_rank() == 0:
-        #             model.eval()
-        #             for n_iter, (img, vid, camid, camids, target_view, _) in enumerate(val_loader):
-        #                 with torch.no_grad():
-        #                     img = img.to(device)
-        #                     camids = camids.to(device)
-        #                     target_view = target_view.to(device)
-        #
-        #                     if cfg.MODEL.ARC == 'OAFR':
-        #                         globla_feats, local_feat_h, wei_h, co_h_pro = model(img, cfg.SOLVER.PERSON_OCC_PRO, cam_label=camids, view_label=target_view)
-        #                         evaluator.update((globla_feats, vid, camid))
-        #                         evaluator.update_w((globla_feats, local_feat_h, wei_h, local_feat_h, co_h_pro, vid, camid))
-        #                     else:
-        #                         feat = model(img, cam_label=camids, view_label=target_view)
-        #                         evaluator.update((feat, vid, camid))
-        #             if cfg.MODEL.ARC == 'OAFR':
-        #                 cmc, mAP, _, _, _, _, _ = evaluator.compute()
-        #                 cmc_local, mAP_local, _, _, _ = evaluator.compute_w()
-        #                 cmc_local_recovery, mAP_local_recovery, _, _, _ , _ = evaluator.compute_featRecovery(k_num=cfg.SOLVER.NEAREST_K)
-        #
-        #                 logger.info("mAP: {:.1%}".format(mAP))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
-        #
-        #                 logger.info("local_mAP: {:.1%}".format(mAP_local))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local[r - 1]))
-        #                 logger.info("local_mAP: {:.1%}".format(mAP_local_recovery))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local_recovery[r - 1]))
-        #             else:
-        #                 cmc, mAP, _, _, _, _, _ = evaluator.compute()
-        #                 logger.info("Validation Results - Epoch: {}".format(epoch))
-        #                 logger.info("mAP: {:.1%}".format(mAP))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
-        #             torch.cuda.empty_cache()
-        #     else:
-        #         model.eval()
-        #         for n_iter, (body, img, vid, camid, camids, target_view, _) in enumerate(val_loader):
-        #             with torch.no_grad():
-        #                 body = body.to(device)
-        #                 img = img.to(device)
-        #                 camids = camids.to(device)
-        #                 target_view = target_view.to(device)
-        #                 # mask_expanded = body.expand(-1, 3, -1, -1)
-        #                 # mask = img * mask_expanded
-        #
-        #                 if cfg.MODEL.ARC == 'OAFR':
-        #                     globla_feats, local_feat_h, wei_h, co_h_pro = model(img,body,flag, cfg.SOLVER.PERSON_OCC_PRO,
-        #                                                                         cam_label=camids,
-        #                                                                         view_label=target_view)
-        #                     evaluator.update((globla_feats, vid, camid))
-        #                     evaluator.update_w((globla_feats, local_feat_h, wei_h, local_feat_h, co_h_pro, vid, camid))
-        #                 else:
-        #                     feat = model(img, cam_label=camids, view_label=target_view)
-        #                     evaluator.update((feat, vid, camid))
-        #         if cfg.MODEL.ARC == 'OAFR':
-        #             cmc, mAP, _, _, _, _, _ = evaluator.compute()
-        #             cmc_local, mAP_local, _, _, _ = evaluator.compute_w()
-        #
-        #             # cmc_local_recovery, mAP_local_recovery, _, _, _ ,_= evaluator.compute_featRecovery(
-        #             #     k_num=cfg.SOLVER.NEAREST_K,first_dist='local',recover_method = cfg.SOLVER.RECOVER_METHOD)
-        #             # cmc_global_recovery, mAP_global_recovery, _, _, _,_ = evaluator.compute_featRecovery(
-        #             #     k_num=cfg.SOLVER.NEAREST_K, first_dist='global',recover_method = cfg.SOLVER.RECOVER_METHOD)
-        #
-        #             cmc_globalloop_recovery, mAP_globalloop_recovery, _, _, _, _ = evaluator.compute_loop_featurerecover(
-        #                 k_num=cfg.SOLVER.NEAREST_K, first_dist='global', recover_method=cfg.SOLVER.RECOVER_METHOD)
-        #
-        #             # cmc_global_recovery2, mAP_global_recovery2, _, _, _, _ = evaluator.compute_featRecovery_comolabel(
-        #             #     k_num=cfg.SOLVER.NEAREST_K, first_dist='global', recover_method=cfg.SOLVER.RECOVER_METHOD)
-        #
-        #             # max_R1 = max([cmc[0],cmc_local[0], cmc_globalloop_recovery[0]])
-        #             max_R1 = cmc_globalloop_recovery[0]
-        #             if max_R1 > best:
-        #                 best = max_R1
-        #                 torch.save(model.state_dict(),
-        #                            os.path.join(cfg.OUTPUT_DIR, cfg.MODEL.NAME + 'best.pth'))
-        #
-        #
-        #                 logger.info("mAP: {:.1%}".format(mAP))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
-        #
-        #                 logger.info("local_mAP: {:.1%}".format(mAP_local))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local[r - 1]))
-        #
-        #                 # logger.info("local_recovery_mAP: {:.1%}".format(mAP_local_recovery))
-        #                 # for r in [1, 5, 10]:
-        #                 #     logger.info("local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local_recovery[r - 1]))
-        #                 #
-        #                 # logger.info("global_recovery_mAP: {:.1%}".format(mAP_global_recovery))
-        #                 # for r in [1, 5, 10]:
-        #                 #     logger.info(
-        #                 #         "local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_global_recovery[r - 1]))
-        #
-        #                 logger.info("global_recoveryloop_mAP: {:.1%}".format(mAP_globalloop_recovery))
-        #                 for r in [1, 5, 10]:
-        #                     logger.info(
-        #                         "local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_globalloop_recovery[r - 1]))
-        #
-        #                 # logger.info("comorecover_mAP: {:.1%}".format(mAP_global_recovery2))
-        #                 # for r in [1, 5, 10]:
-        #                 #     logger.info(
-        #                 #         "local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_global_recovery2[r - 1]))
-        #
-        #         else:
-        #             cmc, mAP, _, _, _, _, _ = evaluator.compute()
-        #             logger.info("Validation Results - Epoch: {}".format(epoch))
-        #             logger.info("mAP: {:.1%}".format(mAP))
-        #             for r in [1, 5, 10]:
-        #                 logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
-        #         torch.cuda.empty_cache()
-
-
-# from PIL import Image
-# import os
-
-# def save_image(image_data, folder_path, file_name):
-# 确保文件夹存在
-#    if not os.path.exists(folder_path):
-#        os.makedirs(folder_path)
-
-# 完整的文件路径
-#    file_path = os.path.join(folder_path, file_name)
-
-# 保存图像
-#    image_data.save(file_path)
-#    print(f"Image saved to {file_path}")
-
-# 示例：将特征向量映射到图像并保存
-# import numpy as np
-# from PIL import Image
-# def feature_to_image(feature_vector, img_size=(224, 224)):
-# 将特征向量归一化到 [0, 1]
-#    feature_vector = feature_vector / feature_vector.max()
-
-# 将特征向量映射到图像空间
-#    img = feature_vector.view(img_size[0], img_size[1], 3)
-
-# 将像素值从 [0, 1] 映射到 [0, 255]
-#    img = (img * 255).byte().numpy()
-
-# 将NumPy数组转换为PIL.Image对象
-#    img = Image.fromarray(img)
-
-#    return img
-
-
-
 
 def do_inference(cfg,
                  model,
@@ -495,17 +320,11 @@ def do_inference(cfg,
             # plt.show()
 
 
-            if cfg.MODEL.ARC == 'OAFR':
+            if cfg.MODEL.ARC == 'PEFR':
                 globla_feats, local_feat_h, wei_h, co_h_pro = model(img,body,flag, cfg.SOLVER.PERSON_OCC_PRO,
                                                                     cam_label=camids,
                                                                     view_label=target_view)
-                
-                #image = feature_to_image(globla_feats)
-                #folder_path = '/data1/wuyue/reid/OAFR/image'
-                #file_name = 'image.png'
-                #file_name = 'feature_image.png'
-                #save_image(image, folder_path, file_name)
-                #save_image(img, folder_path, file_name2)
+
                
                 evaluator.update((globla_feats, pid, camid))
                 evaluator.update_w((globla_feats, local_feat_h, wei_h, local_feat_h, co_h_pro, pid, camid))
@@ -514,23 +333,14 @@ def do_inference(cfg,
                 evaluator.update((feat, pid, camid))
 
 
-    if cfg.MODEL.ARC == 'OAFR':
+    if cfg.MODEL.ARC == 'PEFR':
         cmc, mAP, _, _, _, _, _ = evaluator.compute()
         cmc_local, mAP_local, _, _, _ = evaluator.compute_w()
-        cmc_local_recovery, mAP_local_recovery, _, _, _ ,pid_changes = evaluator.compute_featRecovery(
-            k_num=cfg.SOLVER.NEAREST_K, first_dist='local',recover_method = cfg.SOLVER.RECOVER_METHOD)
-        cmc_global_recovery, mAP_global_recovery, _, _, _, _ = evaluator.compute_featRecovery(
-            k_num=cfg.SOLVER.NEAREST_K, first_dist='global', recover_method=cfg.SOLVER.RECOVER_METHOD)
-
-        cmc_globalloop_recovery, mAP_globalloop_recovery, _, _, _ ,_= evaluator.compute_loop_featurerecover(
+        cmc_globalloop_recovery, mAP_globalloop_recovery, _, _, _ ,pid_changes= evaluator.compute_loop_featurerecover(
             k_num=cfg.SOLVER.NEAREST_K, first_dist='global',recover_method = cfg.SOLVER.RECOVER_METHOD,n_num=2)
-
-        # cmc_global_recovery2, mAP_global_recovery2, _, _, _ ,_= evaluator.compute_featRecovery_comolabel(
-        #     k_num=cfg.SOLVER.NEAREST_K, first_dist='global',recover_method = cfg.SOLVER.RECOVER_METHOD)
     
 
 
-        
         logger.info("mAP: {:.1%}".format(mAP))
         for r in [1, 5, 10]:
             logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
@@ -538,17 +348,6 @@ def do_inference(cfg,
         logger.info("local_mAP: {:.1%}".format(mAP_local))
         for r in [1, 5, 10]:
             logger.info("local_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local[r - 1]))
-
-        logger.info("local_recovery_mAP: {:.1%}".format(mAP_local_recovery))
-        for r in [1, 5, 10]:
-            logger.info("local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_local_recovery[r - 1]))
-
-        logger.info("global_recovery_mAP: {:.1%}".format(mAP_global_recovery))
-        for r in [1, 5, 10]:
-            logger.info(
-                "local_recovery_CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc_global_recovery[r - 1]))
-
-
 
         logger.info("global_recoveryloop_mAP: {:.1%}".format(mAP_globalloop_recovery))
         for r in [1, 5, 10]:
@@ -570,4 +369,3 @@ def do_inference(cfg,
             evaluator.visualize(img_path_list, dataset.query_dir, dataset.gallery_dir, pids=cfg.TEST.PID_VISUAL, save_dir=cfg.TEST.VISUAL_DIR, if_weighted = cfg.TEST.LOCAL,if_reco=cfg.TEST.VISUAL_FEAT_RECOVERY,visual_mode = cfg.TEST.VISUAL_MODE)
     
     return cmc_globalloop_recovery
-    #return cmc[0], cmc[4]

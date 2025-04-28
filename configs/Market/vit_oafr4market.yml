@@ -4,13 +4,13 @@ MODEL:
   METRIC_LOSS_TYPE: 'triplet'
   IF_LABELSMOOTH: 'off'
   IF_WITH_CENTER: 'no'
-  NAME: 'vit_oafr'
+  NAME: 'vit_pefr'
   NO_MARGIN: True
   DEVICE_ID: ('3')
   TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
   STRIDE_SIZE: [16, 16]
   OCC_AUG: True
-  ARC: 'OAFR'
+  ARC: 'PEFR'
   JPM: True
   SIE_CAMERA: True
   SIE_COE: 3.0
@@ -56,10 +56,10 @@ TEST:
   EVAL: True
   IMS_PER_BATCH: 256
   RE_RANKING: False
-  WEIGHT: './logs/Market_vit_oafr/vit_oafr09261934_200.pth'
+  WEIGHT: './logs/Market_vit/vit_oafr09261934_200.pth'
   NECK_FEAT: 'before'
   FEAT_NORM: 'yes'
 
-OUTPUT_DIR: './logs/Market_vit_oafr_only_final/label1'
+OUTPUT_DIR: './logs/Market_vit_final/label1'
 
 

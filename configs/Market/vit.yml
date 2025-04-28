@@ -56,7 +56,7 @@ TEST:
   EVAL: True
   IMS_PER_BATCH: 256
   RE_RANKING: False
-  WEIGHT: './logs/Market_2/vit_oafrbest.pth'
+  WEIGHT: './logs/Market_2/vit_pefr.pth'
   NECK_FEAT: 'before'
   FEAT_NORM: 'yes'
 

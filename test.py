@@ -10,10 +10,10 @@ from utils.logger import setup_logger
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ReID Baseline Training")
     parser.add_argument(
-        "--config_file", default="configs/OCC_Duke/vit_oafr_224.yml", help="path to config file", type=str
+        "--config_file", default="configs/OCC_Duke/vit_224.yml", help="path to config file", type=str
         #"--config_file", default="configs/OCC_Duke/swin_OAFR.yml", help="path to config file", type=str
-        #"--config_file", default="configs/OCC_REID/vit_oafr_224.yml", help="path to config file", type=str
-        #"--config_file", default="configs/Partial_REID/vit_oafr_224.yml", help="path to config file", type=str
+        #"--config_file", default="configs/OCC_REID/vit_224.yml", help="path to config file", type=str
+        #"--config_file", default="configs/Partial_REID/vit_224.yml", help="path to config file", type=str
         #"--config_file", default = "configs/Market/vit_oafr.yml", help = "path to config file", type = str
     )
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,

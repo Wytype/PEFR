@@ -56,10 +56,10 @@ TEST:
   EVAL: True
   IMS_PER_BATCH: 256
   RE_RANKING: False
-  WEIGHT: './logs/Market_vit_oafr/vit_oafr09261934_200.pth'
+  WEIGHT: './logs/Market_vit/vit_09261934_200.pth'
   NECK_FEAT: 'before'
   FEAT_NORM: 'yes'
 
-OUTPUT_DIR: './logs/Duke_vit_oafr_only_paper/1'
+OUTPUT_DIR: './logs/Duke_vit_only_paper/1'
 
 

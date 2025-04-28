@@ -10,7 +10,7 @@ MODEL:
   TRANSFORMER_TYPE: 'vit_base_patch16_224_TransReID'
   STRIDE_SIZE: [16, 16]
   OCC_AUG: True
-  ARC: 'OAFR'
+  ARC: 'PEFR'
   JPM: True
   SIE_CAMERA: False
 
